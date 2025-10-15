@@ -13,7 +13,7 @@ st.set_page_config(
 
 st.title("📊 Kripto Finansal Paneli")
 
-API_KEY = st.secrets.get("api_key", "SENİN_API_ANAHTARIN_BURAYA_YAPIŞTIR")
+API_KEY = st.secrets.get("api_key")
 
 COIN_LISTESI = {
     "Bitcoin": "bitcoin",
@@ -180,4 +180,5 @@ with tab2:
         st.table(df_detaylar)
     else: st.warning("Detay verileri alınamadı.")
 
-st.sidebar.info("Bu panel, CoinGecko API'si kullanılarak anlık ve tarihsel veri çekmektedir.")
+
+
