@@ -1,14 +1,14 @@
-Kripto Finans Paneli
+Kripto Finans Paneli:
 
 Bu proje, seçilen kripto para birimleri için anlık ve tarihsel piyasa verilerini sunan interaktif bir web uygulamasıdır. Kullanıcıların finansal analiz yapmalarını kolaylaştırmak amacıyla Python ve Streamlit kullanılarak geliştirilmiştir.
 
 Canlı Site Adresi: https://kripto-finans-paneli.streamlit.app/
 
-Proje Açıklaması
+Proje Açıklaması:
 
 Kripto Finans Paneli, kullanıcılara çeşitli kripto varlıkların finansal verilerini tek bir arayüz üzerinden analiz etme imkanı sunar. Uygulama, anlık piyasa metriklerini ve esnek zaman aralıklarına göre özelleştirilebilen fiyat grafiklerini içerir. Bu proje, bir finans stajı başvurusu için portfolyo amacıyla, veri analizi ve web uygulama geliştirme yeteneklerini sergilemek üzere hazırlanmıştır.
 
-Özellikler
+Özellikler:
 
 Anlık Piyasa Verileri: Seçilen kripto varlık için anlık fiyat, 24 saatlik değişim yüzdesi, piyasa değeri ve 24 saatlik işlem hacmi gibi temel metrikler sunulur.
 
@@ -22,7 +22,8 @@ Mum Grafiği: "Son 7 Gün", "Son 30 Gün" gibi sabit periyotlar için profesyone
 
 Dinamik Arayüz: Tüm veriler ve grafikler, kullanıcının kenar çubuğundan yaptığı seçimlere göre anında güncellenir.
 
-Kullanılan Teknolojiler
+Kullanılan Teknolojiler:
+
 Backend & Frontend: Python, Streamlit
 
 Veri Analizi ve Manipülasyonu: Pandas
