@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import requests
 import pandas as pd
 from datetime import datetime
@@ -13,7 +13,7 @@ st.set_page_config(
 
 st.title("📊 Kripto Finansal Paneli")
 
-API_KEY = st.secrets.get("api_key")
+API_KEY = st.secrets.get("api_key", "SENİN_API_ANAHTARIN_BURAYA_YAPIŞTIR")
 
 COIN_LISTESI = {
     "Bitcoin": "bitcoin",
@@ -42,7 +42,6 @@ def get_coin_market_data(coin_id):
         return response.json()[0]
     except Exception: return None
 
-# KRİTİK DÜZELTME: OHLC verisini daha doğru çekmek için güncellendi
 @st.cache_data(ttl=3600)
 def get_market_chart_data(coin_id, days):
     URL = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
@@ -52,26 +51,16 @@ def get_market_chart_data(coin_id, days):
         response.raise_for_status()
         veri = response.json()
         
-        # Farklı veri setlerini alıp birleştiriyoruz
-        df = pd.DataFrame(veri['prices'], columns=['timestamp', 'Close'])
+        fiyat_df = pd.DataFrame(veri['prices'], columns=['timestamp', 'Close'])
         hacim_df = pd.DataFrame(veri['total_volumes'], columns=['timestamp', 'Volume'])
         
-        df = pd.merge(df, hacim_df, on='timestamp')
-        
-        # OHLC Verisi: Açılış bir önceki günün kapanışı, En yüksek ve En düşük veri setimizde yok.
-        # Bu yüzden yine bir önceki kapanışı Açılış, Kapanış ise Kapanış olarak alacağız.
-        # En Yüksek ve En Düşük için, her mumun kendi içindeki min/max değerlerine ihtiyacımız var.
-        # Ücretsiz API bunu vermediği için, mum grafiğinin iğnelerini doğru çizmenin tek yolu budur:
-        df['Open'] = df['Close'].shift(1)
-        df['High'] = df[['Open', 'Close']].max(axis=1) # En yüksek değer olarak Açılış/Kapanış arasındaki max'ı kullan
-        df['Low'] = df[['Open', 'Close']].min(axis=1)   # En düşük değer olarak Açılış/Kapanış arasındaki min'i kullan
-
-        # SADECE 1 YIL VEYA DAHA KISA ARALIKLARDA BU OHLC MANTIĞI ÇALIŞIR.
-        # "Tüm Zamanlar" seçildiğinde API çok seyrek veri gönderdiği için, OHLC yine bozulabilir.
-        # Bu, API kısıtlamasının doğal bir sonucudur.
-
+        df = pd.merge(fiyat_df, hacim_df, on='timestamp')
         df['Tarih'] = pd.to_datetime(df['timestamp'], unit='ms')
         df.set_index('Tarih', inplace=True)
+        
+        df['Open'] = df['Close'].shift(1)
+        df['High'] = df['Close'].rolling(window=2, min_periods=1).max().shift(1)
+        df['Low'] = df['Close'].rolling(window=2, min_periods=1).min().shift(1)
         df.dropna(inplace=True)
         
         return df
@@ -112,11 +101,12 @@ if analiz_turu == "Periyot":
         ma_period = st.sidebar.number_input("MA Periyodu:", min_value=5, max_value=200, value=20, step=1)
     
     st.sidebar.subheader("Grafik Araçları")
-    enable_drawing = st.sidebar.checkbox("Grafik Üzerinde Çizim Yap")
-    if enable_drawing:
-        # Çizimleri temizlemek için butona st.rerun() komutu eklenir.
-        if st.sidebar.button("🗑️ Çizimleri Temizle"):
-            st.rerun() 
+    # Çizim aracını etkinleştirme seçeneği kaldırıldı
+    # enable_drawing = st.sidebar.checkbox("Grafik Üzerinde Çizim Yap")
+    # if enable_drawing:
+    #     if st.sidebar.button("🗑️ Çizimleri Temizle"):
+    #         st.rerun() 
+    
 else:
     bugun = datetime.now().date()
     baslangic_tarihi = st.sidebar.date_input("Başlangıç Tarihi", bugun - pd.Timedelta(days=30))
@@ -149,17 +139,19 @@ with tab1:
                     chart_df[f'MA{ma_period}'] = chart_df['Close'].rolling(window=ma_period).mean()
                     fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df[f'MA{ma_period}'], mode='lines', name=f'{ma_period} Günlük MA', line=dict(color='cyan', width=2)), row=1, col=1)
                 
-                drag_mode = 'drawline' if enable_drawing else 'pan'
-                
+                # Tarih Formatı İyileştirmesi
+                fig.update_xaxes(
+                    tickformat="%Y-%m-%d", # Örn: 2025-09-21
+                    row=1, col=1
+                )
+
                 fig.update_layout(
                     xaxis_rangeslider_visible=False, 
                     template="plotly_dark", 
                     height=600, 
                     margin=dict(l=20, r=20, t=20, b=20), 
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    dragmode=drag_mode,
-                    newshape=dict(line_color='yellow', line_width=2),
-                    modebar_add=['drawline', 'drawopenpath', 'drawrect', 'eraseshape'] # Araç çubuğuna çizim butonlarını ekle
+                    dragmode='pan',
                 )
                 fig.update_yaxes(title_text="Fiyat (USD)", row=1, col=1)
                 fig.update_yaxes(title_text="Hacim", row=2, col=1)
@@ -176,6 +168,7 @@ with tab1:
             with st.spinner('Çizgi grafiği için veriler yükleniyor...'):
                 price_df = get_price_data_for_range(secilen_coin_id, start_datetime, end_datetime)
                 if price_df is not None and not price_df.empty:
+                    # Streamlit'in kendi çizgi grafiği tarih formatını otomatik ayarlar.
                     st.line_chart(price_df) 
                 else: st.warning("Seçilen tarih aralığı için veri bulunamadı.")
 
@@ -187,3 +180,4 @@ with tab2:
         st.table(df_detaylar)
     else: st.warning("Detay verileri alınamadı.")
 
+st.sidebar.info("Bu panel, CoinGecko API'si kullanılarak anlık ve tarihsel veri çekmektedir.")
