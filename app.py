@@ -5,13 +5,17 @@ from datetime import datetime
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# KÜÇÜK RÖTUŞ: initial_sidebar_state='collapsed' eklendi
 st.set_page_config(
     page_title="Kripto Veri Paneli",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state='collapsed' 
 )
 
 st.title("📊 Kripto Finansal Paneli")
+
+
 
 API_KEY = st.secrets.get("api_key")
 
@@ -88,7 +92,6 @@ analiz_turu = st.sidebar.radio("Analiz Türü Seçin:", ["Periyot", "Özel Tarih
 
 show_ma = False
 ma_period = 20
-enable_drawing = False
 
 if analiz_turu == "Periyot":
     zaman_araliklari = {"Son 30 Gün": 30, "Son 90 Gün": 90, "Son 1 Yıl": 365, "Tüm Zamanlar": "max"}
@@ -101,7 +104,6 @@ if analiz_turu == "Periyot":
         ma_period = st.sidebar.number_input("MA Periyodu:", min_value=5, max_value=200, value=20, step=1)
     
     st.sidebar.subheader("Grafik Araçları")
-    # Çizim aracı kaldırıldı ve yerine bir Yenileme butonu konuldu
     if st.sidebar.button("🔄 Grafiği Yenile"):
         st.rerun() 
 else:
@@ -114,7 +116,6 @@ secilen_coin_id = COIN_LISTESI[secilen_coin_adi]
 st.header(f"{secilen_coin_adi} Fiyat Analizi")
 market_data = get_coin_market_data(secilen_coin_id)
 
-# Coin Logosu ekleniyor
 if market_data:
     st.markdown(f"""
         <div style='display: flex; align-items: center;'>
@@ -141,7 +142,7 @@ with tab1:
                 
                 fig.add_trace(go.Candlestick(x=chart_df.index, open=chart_df['Open'], high=chart_df['High'], low=chart_df['Low'], close=chart_df['Close'], increasing_line_color='lime', decreasing_line_color='red', name='OHLC'), row=1, col=1)
                 
-                # Hacim Grafiği Rengi Düzeltildi (Tek Renk - Koyu Tema İçin Beyaz)
+                colors = ['green' if row['Close'] > row['Open'] else 'red' for index, row in chart_df.iterrows()]
                 fig.add_trace(go.Bar(x=chart_df.index, y=chart_df['Volume'], name='Hacim', marker_color='#eeeeee'), row=2, col=1)
                 
                 if show_ma:
@@ -180,8 +181,6 @@ with tab1:
 
 with tab2:
     st.subheader("Piyasa Detayları")
-    # market_data'nın boş olup olmadığını kontrol etmeden önce kullanmak hataya neden olabilir.
-    # Bu nedenle bu bloğu market_data kontrolü içine alıyoruz.
     if market_data:
         detay_verileri = {"Metrik": ["Piyasa Değeri", "24s Hacim", "24s En Yüksek", "24s En Düşük", "Dolaşımdaki Arz", "Toplam Arz"], "Değer": [format_large_number(market_data.get('market_cap', 0)), format_large_number(market_data.get('total_volume', 0)), f"${market_data.get('high_24h', 0):,.2f}", f"${market_data.get('low_24h', 0):,.2f}", f"{market_data.get('circulating_supply', 0):,} {market_data.get('symbol', '').upper()}", f"{market_data.get('total_supply', 0):,}" if market_data.get('total_supply') else "N/A"]}
         df_detaylar = pd.DataFrame(detay_verileri).set_index("Metrik")
