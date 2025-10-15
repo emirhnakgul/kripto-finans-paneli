@@ -5,7 +5,6 @@ from datetime import datetime
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# KÜÇÜK RÖTUŞ: initial_sidebar_state='collapsed' eklendi
 st.set_page_config(
     page_title="Kripto Veri Paneli",
     page_icon="📊",
@@ -14,8 +13,6 @@ st.set_page_config(
 )
 
 st.title("📊 Kripto Finansal Paneli")
-
-
 
 API_KEY = st.secrets.get("api_key")
 
@@ -48,6 +45,7 @@ def get_coin_market_data(coin_id):
 
 @st.cache_data(ttl=3600)
 def get_market_chart_data(coin_id, days):
+    
     URL = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
     PARAMETRELER = {'vs_currency': 'usd', 'days': days, 'interval': 'daily', 'x_cg_demo_api_key': API_KEY}
     try:
@@ -61,11 +59,10 @@ def get_market_chart_data(coin_id, days):
         df = pd.merge(fiyat_df, hacim_df, on='timestamp')
         df['Tarih'] = pd.to_datetime(df['timestamp'], unit='ms')
         df.set_index('Tarih', inplace=True)
+        df.dropna(inplace=True)
+        
         
         df['Open'] = df['Close'].shift(1)
-        df['High'] = df['Close'].rolling(window=2, min_periods=1).max().shift(1)
-        df['Low'] = df['Close'].rolling(window=2, min_periods=1).min().shift(1)
-        df.dropna(inplace=True)
         
         return df
     except Exception: return None
@@ -140,9 +137,18 @@ with tab1:
             if chart_df is not None and not chart_df.empty:
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
                 
-                fig.add_trace(go.Candlestick(x=chart_df.index, open=chart_df['Open'], high=chart_df['High'], low=chart_df['Low'], close=chart_df['Close'], increasing_line_color='lime', decreasing_line_color='red', name='OHLC'), row=1, col=1)
                 
-                colors = ['green' if row['Close'] > row['Open'] else 'red' for index, row in chart_df.iterrows()]
+                fig.add_trace(go.Scatter(
+                    x=chart_df.index, 
+                    y=chart_df['Close'], 
+                    mode='lines', 
+                    fill='tozeroy', 
+                    name='Fiyat', 
+                    line=dict(color='#00FFAA'), 
+                    fillcolor='rgba(0, 255, 170, 0.2)' 
+                ), row=1, col=1)
+                
+                
                 fig.add_trace(go.Bar(x=chart_df.index, y=chart_df['Volume'], name='Hacim', marker_color='#eeeeee'), row=2, col=1)
                 
                 if show_ma:
