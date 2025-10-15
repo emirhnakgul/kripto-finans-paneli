@@ -35,7 +35,7 @@ def format_large_number(num):
 @st.cache_data(ttl=600)
 def get_coin_market_data(coin_id):
     URL = 'https://api.coingecko.com/api/v3/coins/markets'
-    PARAMETRELER = {'vs_currency': 'usd', 'ids': coin_id, 'x_cg_demo_api_key': API_KEY}
+    PARAMETRELER = {'vs_currency': 'usd', 'ids': coin_id, 'x_cg_demo_api_key': API_KEY, 'sparkline': 'true'}
     try:
         response = requests.get(url=URL, params=PARAMETRELER)
         response.raise_for_status()
@@ -101,12 +101,9 @@ if analiz_turu == "Periyot":
         ma_period = st.sidebar.number_input("MA Periyodu:", min_value=5, max_value=200, value=20, step=1)
     
     st.sidebar.subheader("Grafik Araçları")
-    # Çizim aracını etkinleştirme seçeneği kaldırıldı
-    # enable_drawing = st.sidebar.checkbox("Grafik Üzerinde Çizim Yap")
-    # if enable_drawing:
-    #     if st.sidebar.button("🗑️ Çizimleri Temizle"):
-    #         st.rerun() 
-    
+    # Çizim aracı kaldırıldı ve yerine bir Yenileme butonu konuldu
+    if st.sidebar.button("🔄 Grafiği Yenile"):
+        st.rerun() 
 else:
     bugun = datetime.now().date()
     baslangic_tarihi = st.sidebar.date_input("Başlangıç Tarihi", bugun - pd.Timedelta(days=30))
@@ -116,6 +113,18 @@ secilen_coin_id = COIN_LISTESI[secilen_coin_adi]
 
 st.header(f"{secilen_coin_adi} Fiyat Analizi")
 market_data = get_coin_market_data(secilen_coin_id)
+
+# Coin Logosu ekleniyor
+if market_data:
+    st.markdown(f"""
+        <div style='display: flex; align-items: center;'>
+            <img src='{market_data.get('image', '')}' width='32'>
+            <h2 style='margin-left: 10px;'>{secilen_coin_adi} Piyasa Verileri</h2>
+        </div>
+        """, unsafe_allow_html=True)
+else:
+    st.subheader(f"{secilen_coin_adi} Piyasa Verileri")
+
 if market_data:
     st.metric(label="Anlık Fiyat (USD)", value=f"${market_data.get('current_price', 0):,.2f}", delta=f"{market_data.get('price_change_percentage_24h', 0):,.2f}%")
 else: st.warning("Anlık piyasa verileri alınamadı.")
@@ -132,18 +141,16 @@ with tab1:
                 
                 fig.add_trace(go.Candlestick(x=chart_df.index, open=chart_df['Open'], high=chart_df['High'], low=chart_df['Low'], close=chart_df['Close'], increasing_line_color='lime', decreasing_line_color='red', name='OHLC'), row=1, col=1)
                 
-                colors = ['green' if row['Close'] > row['Open'] else 'red' for index, row in chart_df.iterrows()]
-                fig.add_trace(go.Bar(x=chart_df.index, y=chart_df['Volume'], name='Hacim', marker_color=colors), row=2, col=1)
+                # Hacim Grafiği Rengi Düzeltildi (Tek Renk - Koyu Tema İçin Beyaz)
+                fig.add_trace(go.Bar(x=chart_df.index, y=chart_df['Volume'], name='Hacim', marker_color='#eeeeee'), row=2, col=1)
                 
                 if show_ma:
                     chart_df[f'MA{ma_period}'] = chart_df['Close'].rolling(window=ma_period).mean()
                     fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df[f'MA{ma_period}'], mode='lines', name=f'{ma_period} Günlük MA', line=dict(color='cyan', width=2)), row=1, col=1)
                 
-                # Tarih Formatı İyileştirmesi
-                fig.update_xaxes(
-                    tickformat="%Y-%m-%d", # Örn: 2025-09-21
-                    row=1, col=1
-                )
+                drag_mode = 'pan' 
+                
+                fig.update_xaxes(tickformat="%Y-%m-%d", row=1, col=1)
 
                 fig.update_layout(
                     xaxis_rangeslider_visible=False, 
@@ -151,7 +158,7 @@ with tab1:
                     height=600, 
                     margin=dict(l=20, r=20, t=20, b=20), 
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    dragmode='pan',
+                    dragmode=drag_mode,
                 )
                 fig.update_yaxes(title_text="Fiyat (USD)", row=1, col=1)
                 fig.update_yaxes(title_text="Hacim", row=2, col=1)
@@ -168,17 +175,16 @@ with tab1:
             with st.spinner('Çizgi grafiği için veriler yükleniyor...'):
                 price_df = get_price_data_for_range(secilen_coin_id, start_datetime, end_datetime)
                 if price_df is not None and not price_df.empty:
-                    # Streamlit'in kendi çizgi grafiği tarih formatını otomatik ayarlar.
                     st.line_chart(price_df) 
                 else: st.warning("Seçilen tarih aralığı için veri bulunamadı.")
 
 with tab2:
     st.subheader("Piyasa Detayları")
+    # market_data'nın boş olup olmadığını kontrol etmeden önce kullanmak hataya neden olabilir.
+    # Bu nedenle bu bloğu market_data kontrolü içine alıyoruz.
     if market_data:
         detay_verileri = {"Metrik": ["Piyasa Değeri", "24s Hacim", "24s En Yüksek", "24s En Düşük", "Dolaşımdaki Arz", "Toplam Arz"], "Değer": [format_large_number(market_data.get('market_cap', 0)), format_large_number(market_data.get('total_volume', 0)), f"${market_data.get('high_24h', 0):,.2f}", f"${market_data.get('low_24h', 0):,.2f}", f"{market_data.get('circulating_supply', 0):,} {market_data.get('symbol', '').upper()}", f"{market_data.get('total_supply', 0):,}" if market_data.get('total_supply') else "N/A"]}
         df_detaylar = pd.DataFrame(detay_verileri).set_index("Metrik")
         st.table(df_detaylar)
     else: st.warning("Detay verileri alınamadı.")
-
-
 
